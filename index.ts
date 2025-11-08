@@ -12,7 +12,7 @@ const pool = new pg.Pool({
   connectionString: process.env.DB_URL,
 });
 
-app.get("/users", async (req, res) => {
+app.get("/myusers", async (req, res) => {
   const result = await pool.query("SELECT * FROM users");
   res.json(result.rows);
 });
