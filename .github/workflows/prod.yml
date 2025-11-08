@@ -1,0 +1,45 @@
+name: Continuous Deployment (Prod)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Docker login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_SECRET }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push school image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          file: Dockerfile
+          push: true
+          tags: sayantannandi/k8s-proj-backend:${{ github.sha }}
+          
+      - name: Clone k8s-ops repo, update image tags, and push tags
+        env:
+          PAT: ${{ secrets.PAT }}
+        run: |
+          git clone https://github.com/sayantann7/k8s-ops.git
+          cd k8s-ops
+
+          sed -i 's|image: sayantannandi/k8s-proj-backend:.*|image: sayantannandi/k8s-proj-backend:${{ github.sha }}|' manifest.yml
+
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Update backend image tags to ${{ github.sha }}"
+          git push https://${PAT}@github.com/sayantann7/k8s-ops.git main
